@@ -6,6 +6,10 @@
 
 Voice-first clinical support for the six week postnatal call. Postnatal Pulse gives the clinician one live screen with a diarized transcript, voice biomarker signals, a concordance alert when reassuring language does not match vocal strain, three structured follow-up probes, and a handoff summary ready for the next step in care.
 
+## Why this matters
+
+Mental health is the leading cause of late maternal death in the UK between six weeks and one year postpartum — 88 women died by suicide between 2021 and 2023, and 46% of all 643 maternal deaths in that period involved known mental health problems ([MBRRACE-UK 2025](https://maternalmentalhealthalliance.org/news/mbrrace-2025-suicide-leading-cause-maternal-death/)). Yet over half of postnatal depression cases are missed at first contact and 30% of mothers receiving the mandatory six week check are not asked about their mental health at all ([Healthwatch 2023](https://www.healthwatch.co.uk/news/2023-03-14/six-week-postnatal-checks-are-failing-many-new-mothers)). The Edinburgh Postnatal Depression Scale carries acceptable sensitivity but only 0.25–0.40 positive predictive value in routine primary care ([Levis et al., BMJ 2020](https://pubmed.ncbi.nlm.nih.gov/33177069/)), and in February 2026 the UK National Screening Committee declined to recommend population screening, citing the same evidence gap ([UK NSC](https://nationalscreening.blog.gov.uk/2025/11/12/uk-nsc-consults-on-evidence-related-to-screening-for-antenatal-and-postnatal-mental-health-conditions/)). Postnatal Pulse is built for the failure mode at the heart of that gap: the mother who tells the midwife she is coping while her voice carries something else.
+
 ## Overview
 
 Postnatal mental health follow-up often depends on what the caller is willing to say in the moment. This project is built around the harder case: the patient says she is coping, while her voice suggests fatigue, distress, or disengagement. Postnatal Pulse combines transcript, biomarker snapshots, and a deterministic alert policy, then turns that signal into a workflow a midwife can act on immediately.
