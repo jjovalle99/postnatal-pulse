@@ -1,0 +1,51 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    env_file:
+      - ${POSTNATAL_PULSE_ENV_FILE:-.env}
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - |
+          import urllib.request
+          urllib.request.urlopen("http://127.0.0.1:8000/healthz", timeout=5).read()
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://127.0.0.1:8000}
+        VITE_API_KEY: ${VITE_API_KEY:-dev-api-key}
+    env_file:
+      - ${POSTNATAL_PULSE_ENV_FILE:-.env}
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "5173:4173"
+    healthcheck:
+      test:
+        - CMD
+        - bun
+        - -e
+        - |
+          fetch("http://127.0.0.1:4173").then((response) => {
+            if (!response.ok) {
+              process.exit(1)
+            }
+          }).catch(() => process.exit(1))
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s

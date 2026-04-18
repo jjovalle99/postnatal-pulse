@@ -13,6 +13,30 @@ uv run fastapi run --app postnatal_pulse.main:app --host 0.0.0.0 --port 8000
 
 Runs at [localhost:8000](http://localhost:8000). Configuration is loaded from the repo root `.env`. A starter file is available at [`../.env.example`](../.env.example).
 
+## Configuration
+
+The backend reads all settings from the repo root `.env`.
+
+### Required backend settings
+
+- `API_KEY`
+- `JWT_SECRET`
+- `PDF_SIGNING_SECRET`
+
+### Optional backend settings
+
+- `CORS_ALLOWED_ORIGINS`
+- `LIVE_PROVIDER_ENABLED`
+- `SPEECHMATICS_API_KEY`
+- `SPEECHMATICS_RT_URL`
+- `THYMIA_API_KEY`
+- `THYMIA_SERVER_URL`
+- `TWILIO_ACCOUNT_SID`
+- `TWILIO_AUTH_TOKEN`
+- `TWILIO_PHONE_NUMBER`
+
+The root [README.md](../README.md) explains what each value is and where to get provider credentials.
+
 ## Modules
 
 | Module | Purpose |

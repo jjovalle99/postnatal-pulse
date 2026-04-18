@@ -13,6 +13,17 @@ VITE_API_BASE_URL=http://127.0.0.1:8000 bun run dev --host 0.0.0.0 --port 5173
 
 Runs at [localhost:5173](http://localhost:5173). The frontend expects the backend to be available at `:8000` unless `VITE_API_BASE_URL` is changed.
 
+## Configuration
+
+The frontend only needs two runtime-facing values from the repo root `.env`:
+
+| Variable | Purpose |
+|----------|---------|
+| `VITE_API_BASE_URL` | Backend base URL that the browser will call |
+| `VITE_API_KEY` | Shared API key sent with frontend requests |
+
+In local development, `VITE_API_KEY` should match the backend `API_KEY`.
+
 ## Key Files
 
 | File | Purpose |
