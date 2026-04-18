@@ -250,3 +250,77 @@ SCENARIO_FIXTURES = {
 
 def get_scenario_fixture(scenario_id: str) -> ScenarioFixture:
     return SCENARIO_FIXTURES[scenario_id]
+
+
+def _progress(scenario: ScenarioFixture, t: float) -> float:
+    anchor = (
+        float(scenario.flag_at_t)
+        if scenario.flag_at_t is not None
+        else float(scenario.duration_seconds)
+    )
+    if anchor <= 0:
+        return 1.0
+    return min(1.0, max(0.0, t / anchor))
+
+
+def synthesize_biomarkers(
+    scenario: ScenarioFixture,
+    t: float,
+) -> dict[str, dict[str, float]]:
+    ramp = _progress(scenario, t)
+    if scenario.id == "A":
+        return {
+            "helios": {
+                "fatigue": round(0.35 + 0.34 * ramp, 3),
+                "distress": round(0.30 + 0.32 * ramp, 3),
+                "stress": round(0.25 + 0.32 * ramp, 3),
+            },
+            "apollo": {
+                "sleep_issues": round(0.35 + 0.33 * ramp, 3),
+                "low_energy": round(0.30 + 0.34 * ramp, 3),
+                "anhedonia": round(0.25 + 0.33 * ramp, 3),
+            },
+            "psyche": {
+                "sad": round(0.12 + 0.28 * ramp, 3),
+                "fearful": round(0.05 + 0.10 * ramp, 3),
+                "disgusted": 0.05,
+            },
+        }
+    if scenario.id == "B":
+        return {
+            "helios": {
+                "fatigue": round(0.50 + 0.35 * ramp, 3),
+                "distress": round(0.50 + 0.40 * ramp, 3),
+                "stress": round(0.40 + 0.30 * ramp, 3),
+            },
+            "apollo": {
+                "sleep_issues": round(0.45 + 0.32 * ramp, 3),
+                "low_energy": round(0.40 + 0.28 * ramp, 3),
+                "anhedonia": round(0.35 + 0.30 * ramp, 3),
+            },
+            "psyche": {
+                "sad": round(0.40 + 0.40 * ramp, 3),
+                "fearful": 0.10,
+                "disgusted": 0.05,
+            },
+        }
+    return {
+        "helios": {"fatigue": 0.25, "distress": 0.15, "stress": 0.18},
+        "apollo": {"sleep_issues": 0.22, "low_energy": 0.20, "anhedonia": 0.18},
+        "psyche": {"sad": 0.10, "fearful": 0.05, "disgusted": 0.05},
+    }
+
+
+def synthesize_concordance_trace(
+    scenario: ScenarioFixture,
+    t: float,
+) -> tuple[float, float]:
+    ramp = _progress(scenario, t)
+    if scenario.id == "A":
+        return (
+            round(0.25 + 0.45 * ramp, 3),
+            round(0.25 + 0.38 * ramp, 3),
+        )
+    if scenario.id == "B":
+        return (0.10, round(0.50 + 0.35 * ramp, 3))
+    return (0.10, 0.15)

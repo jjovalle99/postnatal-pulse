@@ -17,7 +17,7 @@ async def test_healthz_returns_service_statuses() -> None:
     assert response.status_code == 200
     assert response.json() == {
         "version": version("postnatal-pulse"),
-        "db_pool_state": "not_connected",
+        "db_pool_state": "not_configured",
         "sentinel_status": "not_configured",
         "speechmatics_status": "not_configured",
     }

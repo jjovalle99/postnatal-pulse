@@ -35,7 +35,13 @@ from postnatal_pulse.calls import (
     update_call_probes,
 )
 from postnatal_pulse.config import AppSettings, get_settings
-from postnatal_pulse.fixtures import SCENARIO_FIXTURES, ScenarioFixture, get_scenario_fixture
+from postnatal_pulse.fixtures import (
+    SCENARIO_FIXTURES,
+    ScenarioFixture,
+    get_scenario_fixture,
+    synthesize_biomarkers,
+    synthesize_concordance_trace,
+)
 from postnatal_pulse.live_runtime import LiveCallRuntime
 from postnatal_pulse.live_session import LiveProviderSession, create_live_provider_session
 from postnatal_pulse.pdfs import (
@@ -47,6 +53,11 @@ from postnatal_pulse.pdfs import (
     update_pdf_sms_delivery,
     update_pdf_sms_dispatch,
     verify_pdf_download_signature,
+)
+from postnatal_pulse.persistence import (
+    DatabaseHandle,
+    create_database_handle,
+    dispose_database_handle,
 )
 
 
@@ -127,6 +138,24 @@ class RationaleDoneEventResponse(BaseModel):
     confidence: str
 
 
+class RationaleTokenEventResponse(BaseModel):
+    flag_id: UUID
+    driver_index: int
+    token: str
+
+
+class BiomarkerSnapshotEventResponse(BaseModel):
+    t: float
+    layer: str
+    snapshots: dict[str, float]
+
+
+class ConcordanceTraceEventResponse(BaseModel):
+    t: float
+    transcript_min: float
+    acoustic_strain: float
+
+
 class SaveProbesResponse(BaseModel):
     triage: TriageEventResponse
     flag: FlagEventResponse
@@ -189,7 +218,7 @@ PROBE_SCORES = (
 )
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class AppDependencies:
     call_registry: CallRegistry
     live_provider_sessions: dict[UUID, LiveProviderSession]
@@ -201,18 +230,23 @@ class AppDependencies:
     db_pool_state: str
     sentinel_status: str
     speechmatics_status: str
+    database_handle: DatabaseHandle | None = None
 
 
 def create_dependencies() -> AppDependencies:
+    settings = get_settings()
+    database_configured = (
+        settings.database_url is not None and settings.database_url.strip() != ""
+    )
     return AppDependencies(
         call_registry=CallRegistry(),
         live_provider_sessions={},
         live_runtimes={},
         pdf_registry=PdfRegistry(),
         twilio_stream_call_ids={},
-        settings=get_settings(),
+        settings=settings,
         version=version("postnatal-pulse"),
-        db_pool_state="not_connected",
+        db_pool_state="configured" if database_configured else "not_configured",
         sentinel_status="not_configured",
         speechmatics_status="not_configured",
     )
@@ -220,8 +254,16 @@ def create_dependencies() -> AppDependencies:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    app.state.dependencies = create_dependencies()
-    yield
+    dependencies = create_dependencies()
+    app.state.dependencies = dependencies
+    database_handle = await create_database_handle(dependencies.settings)
+    if database_handle is not None:
+        dependencies.database_handle = database_handle
+        dependencies.db_pool_state = database_handle.pool_state
+    try:
+        yield
+    finally:
+        await dispose_database_handle(dependencies.database_handle)
 
 
 def get_dependencies(connection: HTTPConnection) -> AppDependencies:
@@ -392,45 +434,113 @@ async def send_sms_message(
     return await asyncio.to_thread(create_message)
 
 
+BIOMARKER_CADENCE_SECONDS = 10
+
+
+def _split_driver_into_tokens(driver: str) -> list[str]:
+    tokens: list[str] = []
+    remaining = driver
+    while len(remaining) > 0:
+        space_index = remaining.find(" ")
+        if space_index == -1:
+            tokens.append(remaining)
+            break
+        tokens.append(remaining[: space_index + 1])
+        remaining = remaining[space_index + 1 :]
+    return tokens
+
+
+type FixtureTimelineItem = tuple[float, int, dict[str, str]]
+
+
 def build_fixture_stream_events(
     call_id: UUID,
     scenario: ScenarioFixture,
 ) -> tuple[dict[str, str], ...]:
-    events: list[dict[str, str]] = [
-        create_sse_event(
-            "triage",
-            TriageEventResponse(
-                t=0,
-                state=scenario.triage_pre_flag,
-                source="pre-flag",
-                flag_id=None,
-            ),
-        ),
-    ]
-    flag_id = get_flag_id_for_scenario(scenario)
-    flag_emitted = False
+    items: list[FixtureTimelineItem] = []
 
-    for transcript_entry in scenario.transcript:
-        events.append(
+    items.append(
+        (
+            0.0,
+            0,
             create_sse_event(
-                "transcript",
-                TranscriptEventResponse(
-                    t=transcript_entry.t,
-                    speaker=transcript_entry.speaker,
-                    text=transcript_entry.text,
-                    is_final=True,
-                    confidence=None,
+                "triage",
+                TriageEventResponse(
+                    t=0,
+                    state=scenario.triage_pre_flag,
+                    source="pre-flag",
+                    flag_id=None,
                 ),
             ),
         )
-        if (
-            scenario.flag_at_t is not None
-            and transcript_entry.t >= scenario.flag_at_t
-            and scenario.flag_kind is not None
-            and flag_id is not None
-            and not flag_emitted
-        ):
-            events.append(
+    )
+
+    tick = 0
+    while tick < scenario.duration_seconds:
+        biomarkers = synthesize_biomarkers(scenario, float(tick))
+        for layer in ("helios", "apollo", "psyche"):
+            items.append(
+                (
+                    float(tick),
+                    1,
+                    create_sse_event(
+                        "biomarker",
+                        BiomarkerSnapshotEventResponse(
+                            t=float(tick),
+                            layer=layer,
+                            snapshots=biomarkers[layer],
+                        ),
+                    ),
+                )
+            )
+        transcript_min, acoustic_strain = synthesize_concordance_trace(
+            scenario, float(tick),
+        )
+        items.append(
+            (
+                float(tick),
+                2,
+                create_sse_event(
+                    "concordance_trace",
+                    ConcordanceTraceEventResponse(
+                        t=float(tick),
+                        transcript_min=transcript_min,
+                        acoustic_strain=acoustic_strain,
+                    ),
+                ),
+            )
+        )
+        tick += BIOMARKER_CADENCE_SECONDS
+
+    for transcript_entry in scenario.transcript:
+        items.append(
+            (
+                float(transcript_entry.t),
+                3,
+                create_sse_event(
+                    "transcript",
+                    TranscriptEventResponse(
+                        t=transcript_entry.t,
+                        speaker=transcript_entry.speaker,
+                        text=transcript_entry.text,
+                        is_final=True,
+                        confidence=None,
+                    ),
+                ),
+            )
+        )
+
+    flag_id = get_flag_id_for_scenario(scenario)
+    if (
+        flag_id is not None
+        and scenario.flag_at_t is not None
+        and scenario.flag_kind is not None
+    ):
+        flag_t = float(scenario.flag_at_t)
+        items.append(
+            (
+                flag_t,
+                4,
                 create_sse_event(
                     "flag",
                     FlagEventResponse(
@@ -447,7 +557,27 @@ def build_fixture_stream_events(
                     ),
                 ),
             )
-            events.append(
+        )
+        for driver_index, driver in enumerate(scenario.drivers):
+            for token in _split_driver_into_tokens(driver):
+                items.append(
+                    (
+                        flag_t,
+                        5,
+                        create_sse_event(
+                            "rationale_token",
+                            RationaleTokenEventResponse(
+                                flag_id=flag_id,
+                                driver_index=driver_index,
+                                token=token,
+                            ),
+                        ),
+                    )
+                )
+        items.append(
+            (
+                flag_t,
+                6,
                 create_sse_event(
                     "rationale_done",
                     RationaleDoneEventResponse(
@@ -457,7 +587,11 @@ def build_fixture_stream_events(
                     ),
                 ),
             )
-            events.append(
+        )
+        items.append(
+            (
+                flag_t,
+                7,
                 create_sse_event(
                     "triage",
                     TriageEventResponse(
@@ -468,7 +602,10 @@ def build_fixture_stream_events(
                     ),
                 ),
             )
-            flag_emitted = True
+        )
+
+    items.sort(key=lambda item: (item[0], item[1]))
+    events = [item[2] for item in items]
 
     events.append(
         create_sse_event(
