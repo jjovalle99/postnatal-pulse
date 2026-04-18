@@ -2,7 +2,7 @@
 
 [![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue)](https://www.python.org) [![FastAPI](https://img.shields.io/badge/FastAPI-0.136-009688)](https://fastapi.tiangolo.com) [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff) [![ty](https://img.shields.io/badge/type%20checked-ty-blue)](https://github.com/astral-sh/ty) [![coverage](https://img.shields.io/badge/coverage-92%25-brightgreen)]() [![React 19](https://img.shields.io/badge/React-19-149eca)](https://react.dev) [![Vite 8](https://img.shields.io/badge/Vite-8-646cff)](https://vite.dev) [![Biome](https://img.shields.io/badge/linted%20with-biome-60a5fa)](https://biomejs.dev) [![Bun](https://img.shields.io/badge/bun-1.3-f472b6)](https://bun.sh)
 
-[![Hackathon Prototype](https://img.shields.io/badge/hackathon-prototype-f59e0b?style=flat-square&logo=rocket&logoColor=white)]()
+[![Voice AI Hack](https://img.shields.io/badge/Voice%20AI%20Hack-374151?style=flat-square&logo=rocket&logoColor=white)]()
 
 Voice-first clinical support for the six week postnatal call. Postnatal Pulse gives the clinician one live screen with a diarized transcript, voice biomarker signals, a concordance alert when reassuring language does not match vocal strain, three structured follow-up probes, and a handoff summary ready for the next step in care.
 
