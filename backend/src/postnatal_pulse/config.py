@@ -5,7 +5,8 @@ from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-ROOT_DIR = Path(__file__).resolve().parents[3]
+BACKEND_DIR = Path(__file__).resolve().parents[2]
+ROOT_DIR = BACKEND_DIR.parent
 DEFAULT_TWILIO_ACCOUNT_SID = "AC00000000000000000000000000000000"
 DEFAULT_TWILIO_AUTH_TOKEN = "test-twilio-auth-token"
 DEFAULT_TWILIO_PHONE_NUMBER = "+10000000000"
@@ -56,7 +57,7 @@ class AppSettings(BaseSettings):
     )
 
     model_config = SettingsConfigDict(
-        env_file=ROOT_DIR / ".env",
+        env_file=(ROOT_DIR / ".env", BACKEND_DIR / ".env"),
         env_file_encoding="utf-8",
         extra="ignore",
         populate_by_name=True,

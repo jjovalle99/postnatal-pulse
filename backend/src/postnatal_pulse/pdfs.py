@@ -8,12 +8,12 @@ from uuid import UUID, uuid4
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-from postnatal_pulse.config import ROOT_DIR
+from postnatal_pulse.config import BACKEND_DIR
 from postnatal_pulse.fixtures import ScenarioFixture, TranscriptEntry
 
 
-TEMPLATE_DIR = ROOT_DIR / 'backend' / 'templates'
-PDF_STORAGE_DIR = ROOT_DIR / 'backend' / '.generated'
+TEMPLATE_DIR = BACKEND_DIR / 'templates'
+PDF_STORAGE_DIR = BACKEND_DIR / '.generated'
 PATIENT_NAME = 'Maya Patel'
 PATIENT_AGE = 29
 PATIENT_WEEKS = '6 weeks postpartum'

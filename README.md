@@ -111,21 +111,23 @@ VITE_API_BASE_URL=http://127.0.0.1:8000 bun run dev --host 0.0.0.0 --port 5173
 
 ## Docker Compose
 
-Run the full local stack with Docker:
+Single-command local smoke run:
 
 ```bash
-docker compose up --build
+POSTNATAL_PULSE_ENV_FILE=.env.example BACKEND_HOST_PORT=18000 FRONTEND_HOST_PORT=15173 VITE_API_BASE_URL=http://127.0.0.1:18000 docker-compose --env-file .env.example -p postnatal-pulse-e2e up --build
 ```
 
-This starts:
+This uses `.env.example`, avoids the common local `8000` and `5173` port collisions, and brings up:
 
-- the backend on `http://127.0.0.1:8000`
-- the frontend on `http://127.0.0.1:5173`
+- the backend on `http://127.0.0.1:18000`
+- the frontend on `http://127.0.0.1:15173`
 
-If you want a zero-secret local smoke run, you can use the example file directly:
+Once the stack is up, open the frontend and use the demo drawer to start Scenario A.
+
+To stop the stack:
 
 ```bash
-POSTNATAL_PULSE_ENV_FILE=.env.example docker compose --env-file .env.example up --build
+docker-compose -p postnatal-pulse-e2e down -v --remove-orphans
 ```
 
 ## Verification

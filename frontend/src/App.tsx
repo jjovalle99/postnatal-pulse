@@ -2071,13 +2071,17 @@ function HandoffModal({
   const callDate = callStartedAt
     ? `${formatDateLong(callStartedAt)} · ${formatClock(callStartedAt)}`
     : '—'
-  const totalSeconds =
+  const wallClockSeconds =
     callStartedAt !== null && callEndedAt !== null
       ? Math.max(
           0,
           Math.round((callEndedAt.getTime() - callStartedAt.getTime()) / 1000),
         )
-      : Math.max(0, Math.round(elapsedSeconds))
+      : 0
+  const totalSeconds = Math.max(
+    wallClockSeconds,
+    Math.max(0, Math.round(elapsedSeconds)),
+  )
   const flagLabel =
     liveScenario.flagAt === null ? '—' : formatElapsed(liveScenario.flagAt)
   const excerpt = findTranscriptExcerpt(
