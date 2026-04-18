@@ -1,73 +1,52 @@
-# React + TypeScript + Vite
+# Frontend Guide
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This frontend is a single-screen React application built for reviewers and demo operators. It is responsible for presenting the live call state, transcript, biomarker rail, concordance alert, probes workflow, and handoff preview.
 
-Currently, two official plugins are available:
+## Start here
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+If you want to understand the UI quickly, read these files in order:
 
-## React Compiler
+1. [`src/App.tsx`](./src/App.tsx)
+   The full single-screen clinical experience lives here.
+2. [`src/lib/call-state.ts`](./src/lib/call-state.ts)
+   Typed reducer for SSE events from the backend.
+3. [`src/lib/call-store.ts`](./src/lib/call-store.ts)
+   Zustand store that holds the active call state.
+4. [`src/lib/api.ts`](./src/lib/api.ts)
+   HTTP client surface for scenarios, live attach, probes, and handoff generation.
+5. [`src/index.css`](./src/index.css)
+   Global tokens, typography, and motion primitives for the current visual port.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## What the frontend currently does
 
-## Expanding the ESLint configuration
+- Renders the top strip, concordance ribbon, transcript panel, biomarker card, and assessment card.
+- Supports fixture scenario start and latest-live-call attach.
+- Consumes one SSE stream for transcript, triage, biomarker, concordance, flag, rationale, system, and end updates.
+- Opens the rationale sheet, probe modal, and handoff preview.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## What to pay attention to
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+- The current implementation is intentionally single-screen and direct. There is no routing layer yet.
+- The visual port is close to the reference, but the remaining differences are mostly in timing and polish rather than missing major UI regions.
+- The demo drawer is still present for local operation and fixture switching.
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+## Local run
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+bun install
+VITE_API_BASE_URL=http://127.0.0.1:8000 bun run dev --host 0.0.0.0 --port 5173
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Frontend gates
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+bun test
+bun run lint
+bun run build
 ```
+
+## Review tips
+
+- Use Scenario A first. It shows the full intended transition from routine monitoring to alert and follow-up.
+- The key reviewer question is not whether every last pixel is finished, but whether the screen makes the clinical logic legible in one pass.
+- The handoff preview is rendered in-app for review speed, while the backend still generates the underlying PDF artifact.
