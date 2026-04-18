@@ -1,65 +1,65 @@
-# Backend Guide
+# Backend
 
-This backend is a FastAPI application that owns the demo call lifecycle: scenario start, SSE event streaming, browser and Twilio audio ingress, live-provider orchestration, probe capture, and handoff PDF generation.
+FastAPI backend for Postnatal Pulse. It runs the call lifecycle, serves scenario replay, accepts browser and Twilio audio, streams live events to the UI, stores handoff artifacts, and dispatches SMS notifications through Twilio.
 
-## Start here
+For the full product context, see the root [README.md](../README.md), [docs/PRD.md](../docs/PRD.md), and [docs/SPEC.md](../docs/SPEC.md).
 
-If you are reviewing the backend for the first time, these files matter most:
-
-1. [`src/postnatal_pulse/main.py`](./src/postnatal_pulse/main.py)
-   Main application entry point. Defines the REST API, SSE stream, Twilio webhook, browser audio WebSocket, and handoff endpoints.
-2. [`src/postnatal_pulse/fixtures.py`](./src/postnatal_pulse/fixtures.py)
-   Scenario A, B, and C source of truth.
-3. [`src/postnatal_pulse/live_session.py`](./src/postnatal_pulse/live_session.py)
-   Speechmatics and Thymia live-session orchestration.
-4. [`src/postnatal_pulse/live_runtime.py`](./src/postnatal_pulse/live_runtime.py)
-   In-memory event buffering and runtime state used by the live path.
-5. [`src/postnatal_pulse/pdfs.py`](./src/postnatal_pulse/pdfs.py)
-   Handoff PDF rendering and signed-download handling.
-6. [`tests/`](./tests/)
-   Backend verification surface.
-
-## Current architecture
-
-- Fixture replay is fully available and is the fastest way to review the product story.
-- Browser and Twilio audio entry points are implemented.
-- Live provider adapters for Speechmatics and Thymia are present behind configuration.
-- Call state and PDF state are still stored in memory. Neon persistence is the next major backend milestone.
-
-## Useful commands
-
-### Install and run
+## Local Development
 
 ```bash
 uv sync
 uv run fastapi run --app postnatal_pulse.main:app --host 0.0.0.0 --port 8000
 ```
 
-### Test and gates
+Runs at [localhost:8000](http://localhost:8000). Configuration is loaded from the repo root `.env`. A starter file is available at [`../.env.example`](../.env.example).
+
+## Modules
+
+| Module | Purpose |
+|--------|---------|
+| `main.py` | FastAPI entry point, REST API, SSE stream, browser audio WebSocket, Twilio webhooks |
+| `fixtures.py` | Scenario catalog and deterministic transcript data |
+| `calls.py` | In-memory call session registry and state transitions |
+| `live_analysis.py` | Transcript normalization and alert-side transformation logic |
+| `live_providers.py` | Provider configuration builders for Speechmatics and Thymia |
+| `live_runtime.py` | Buffered live event state and streaming runtime helpers |
+| `live_session.py` | Live provider orchestration for audio, transcript, biomarker, and policy events |
+| `pdfs.py` | Handoff PDF rendering, storage, and signed download helpers |
+| `config.py` | Environment-backed application settings |
+
+## API Surface
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/healthz` | GET | Health and provider status |
+| `/api/scenarios` | GET | Fixture scenario catalog |
+| `/api/calls` | POST | Start fixture, browser, or Twilio call session |
+| `/api/calls/latest` | GET | Attach the UI to the latest active call |
+| `/api/calls/{id}/events` | GET | EventSource stream for transcript, triage, biomarker, flag, and end events |
+| `/api/calls/{id}/probes` | POST | Save the three structured probe answers |
+| `/api/calls/{id}/handoff` | POST | Generate a handoff PDF artifact |
+| `/api/calls/{id}/handoff/{pdf_id}/send` | POST | Send the handoff summary through Twilio SMS |
+| `/twilio/voice` | POST | Twilio inbound voice webhook |
+| `/twilio/sms-status` | POST | Twilio SMS delivery callback |
+| `/ws/audio/browser` | WebSocket | Browser microphone ingest |
+| `/ws/twilio/media` | WebSocket | Twilio Media Streams ingest |
+
+## Tests
 
 ```bash
 uv run pytest -q
+```
+
+The backend test suite covers the API surface, fixture replay, Twilio integration boundaries, live session adapters, and PDF generation.
+
+## Linting and Types
+
+```bash
 uv run ruff check
 uv run ty check
 ```
 
-## Reviewing the flow
+## Notes
 
-### Fixture path
-
-- `POST /api/calls` with `source=fixture`
-- open the returned SSE stream
-- inspect transcript, flag, triage, and end events
-- generate a handoff with `POST /api/calls/{id}/handoff`
-
-### Live path
-
-- create a browser or Twilio call session
-- stream audio into the corresponding WebSocket
-- watch SSE events populate from the live runtime
-
-## Important caveats
-
-- Persistence is not wired to Neon yet.
-- The fixture event stream does not yet mirror every live-event nuance.
-- `audioop` is still used for Twilio μ-law decode and resample, which is acceptable on Python 3.12 but should be replaced before Python 3.13.
+- The backend is designed so the same UI can run against deterministic fixtures or a real live stream.
+- The repo root `.env.example` separates baseline local configuration from optional live-provider and Twilio settings.
