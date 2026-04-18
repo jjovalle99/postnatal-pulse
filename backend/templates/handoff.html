@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      body {
+        color: #10243f;
+        font-family: "Avenir Next", "Segoe UI", sans-serif;
+        font-size: 11px;
+        line-height: 1.45;
+        margin: 24px;
+      }
+
+      h1,
+      h2,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        font-size: 20px;
+        margin-bottom: 4px;
+      }
+
+      h2 {
+        border-top: 1px solid #204d7d;
+        margin-top: 16px;
+        padding-top: 8px;
+        font-size: 13px;
+      }
+
+      .meta {
+        color: rgba(16, 36, 63, 0.7);
+        margin-bottom: 12px;
+      }
+
+      .triage {
+        display: inline-block;
+        border-radius: 999px;
+        padding: 4px 10px;
+        background: rgba(191, 122, 19, 0.16);
+        font-weight: 700;
+      }
+
+      .probe-row,
+      .transcript-row {
+        margin-top: 8px;
+      }
+
+      .probe-question,
+      .transcript-meta {
+        color: rgba(16, 36, 63, 0.7);
+        font-size: 10px;
+      }
+
+      .footer {
+        margin-top: 18px;
+        color: rgba(16, 36, 63, 0.72);
+        font-size: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Postnatal Call Handoff Summary</h1>
+    <p class="meta">Generated {{ generated_at }} · Call {{ call_id }}</p>
+    <p>{{ patient_name }}, {{ patient_age }} · {{ patient_weeks }} · Baby: {{ patient_baby }}</p>
+    <p>Sending clinician: {{ clinician_name }}</p>
+
+    <h2>Current triage</h2>
+    <p class="triage">{{ triage_label }}</p>
+    <p>Flag time: {{ flag_time if flag_time is not none else "No flag" }}</p>
+
+    <h2>Why this was flagged</h2>
+    {% for driver in rationale %}
+    <p>{{ driver }}</p>
+    {% endfor %}
+
+    <h2>Probe responses</h2>
+    {% for question, answer in probe_rows %}
+    <div class="probe-row">
+      <p class="probe-question">{{ question }}</p>
+      <p>{{ answer }}</p>
+    </div>
+    {% endfor %}
+
+    <h2>Transcript excerpt</h2>
+    {% for entry in transcript_excerpt %}
+    <div class="transcript-row">
+      <p class="transcript-meta">{{ entry.speaker }} · {{ entry.t }}s</p>
+      <p>{{ entry.text }}</p>
+    </div>
+    {% endfor %}
+
+    <p class="footer">
+      Decision-support summary generated from live call signals and transcript excerpts for clinician review only. This document is not a diagnosis and does not replace clinical judgment, safeguarding procedure, or local perinatal mental health pathways. Confirm details against the full conversation before acting.
+    </p>
+  </body>
+</html>

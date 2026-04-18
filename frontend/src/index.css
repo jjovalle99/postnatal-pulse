@@ -1,0 +1,230 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap");
+
+:root {
+  --paper: #f4f6f9;
+  --paper-2: #eef1f6;
+  --paper-3: #e4e9f0;
+  --paper-rule: #d6dde6;
+  --paper-rule-soft: #e6ebf2;
+  --surface: #ffffff;
+  --surface-2: #fbfcfd;
+
+  --ink: #0b1220;
+  --ink-2: #2a3342;
+  --ink-3: #4b5666;
+  --ink-4: #7b8596;
+
+  --clinic-blue: #1d3fb0;
+  --clinic-blue-2: #2a4fc9;
+  --clinic-blue-3: #3b63df;
+  --clinic-blue-4: #5b7ee8;
+  --clinic-blue-tint: #dce5fa;
+  --clinic-blue-wash: #eef3fd;
+  --clinic-blue-ink: #0f2670;
+
+  --slate: #6b7687;
+  --slate-2: #97a0b0;
+
+  --green: #17734a;
+  --green-fill: #d9f0e3;
+  --green-wash: #edf7f1;
+  --amber: #8a4a07;
+  --amber-fill: #fbe7bf;
+  --amber-fill-soft: #fdf1d6;
+  --amber-rule: #d69a33;
+  --red: #9a1d16;
+  --red-fill: #fad4cf;
+  --red-wash: #fdeceb;
+
+  --font-sans:
+    "Source Sans 3", "Inter Tight", "Frutiger", "Segoe UI", system-ui,
+    sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Consolas, monospace;
+
+  --shadow-card:
+    0 1px 0 rgba(15, 38, 112, 0.03), 0 1px 3px rgba(15, 38, 112, 0.05);
+  --shadow-card-lg:
+    0 1px 0 rgba(15, 38, 112, 0.03), 0 4px 12px rgba(15, 38, 112, 0.06);
+  --shadow-modal:
+    0 24px 64px rgba(11, 18, 32, 0.24), 0 2px 8px rgba(11, 18, 32, 0.06);
+  --ring: 0 0 0 3px rgba(29, 63, 176, 0.18);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  letter-spacing: -0.005em;
+}
+
+body {
+  min-height: 100vh;
+  min-width: 1280px;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+button:focus-visible,
+select:focus-visible,
+[tabindex]:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+  border-radius: 8px;
+}
+
+.tab {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings:
+    "tnum" 1,
+    "cv11" 1,
+    "ss01" 1;
+  letter-spacing: 0;
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.scroll::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.scroll::-webkit-scrollbar-thumb {
+  background: #c9d1dc;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.scroll::-webkit-scrollbar-thumb:hover {
+  background: #aeb8c6;
+  background-clip: padding-box;
+  border: 2px solid transparent;
+}
+
+.scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@keyframes softPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(138, 74, 7, 0.38);
+  }
+
+  100% {
+    box-shadow: 0 0 0 14px rgba(138, 74, 7, 0);
+  }
+}
+
+.pulse-once {
+  animation: softPulse 900ms ease-out 1;
+}
+
+@keyframes bluePulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(29, 63, 176, 0.32);
+  }
+
+  100% {
+    box-shadow: 0 0 0 14px rgba(29, 63, 176, 0);
+  }
+}
+
+.pulse-blue {
+  animation: bluePulse 1400ms cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes bannerIn {
+  from {
+    max-height: 44px;
+    opacity: 0.6;
+  }
+
+  to {
+    max-height: 120px;
+    opacity: 1;
+  }
+}
+
+.banner-in {
+  animation: bannerIn 220ms ease-out both;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.fade-in {
+  animation: fadeIn 180ms ease-out both;
+}
+
+@keyframes sheetIn {
+  from {
+    transform: translateX(16px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.sheet-in {
+  animation: sheetIn 220ms ease-out both;
+}
+
+@keyframes modalIn {
+  from {
+    transform: translateY(8px) scale(0.995);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+.modal-in {
+  animation: modalIn 180ms ease-out both;
+}
+
+::selection {
+  background: var(--amber-fill);
+  color: var(--ink);
+}
+
+html[data-show-legend="false"] .ribbon-legend {
+  display: none;
+}
+
+html[data-density="compact"] .density-pad {
+  padding: 10px 14px;
+}
+
+#root {
+  min-height: 100vh;
+}
