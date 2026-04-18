@@ -54,6 +54,10 @@ class AppSettings(BaseSettings):
         default=DEFAULT_TWILIO_PHONE_NUMBER,
         alias="TWILIO_PHONE_NUMBER",
     )
+    database_url: str | None = Field(
+        default=None,
+        alias="DATABASE_URL",
+    )
 
     model_config = SettingsConfigDict(
         env_file=ROOT_DIR / ".env",

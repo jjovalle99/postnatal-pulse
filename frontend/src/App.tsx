@@ -8,6 +8,7 @@ import {
   fetchScenarios,
   generateHandoff,
   saveProbeAnswers,
+  sendHandoff,
   startFixtureCall,
 } from './lib/api'
 import type {
@@ -20,6 +21,8 @@ import { useCallStore } from './lib/call-store'
 import { getRuntimeContext } from './lib/runtime'
 
 const runtime = getRuntimeContext()
+
+const demoModeEnabled = import.meta.env.VITE_DEMO_MODE !== 'false'
 
 const demoLineNumber = '+44 20 7946 0123'
 const biomarkerOrder = [
@@ -183,7 +186,8 @@ function deriveLiveScenario(
   callState: CallState,
   selectedScenarioId: string | null,
 ): LiveScenario {
-  const drivers = callState.rationale?.drivers ?? []
+  const drivers =
+    callState.rationale?.drivers ?? callState.streamingRationale?.drivers ?? []
   const transcript = callState.transcripts.map((line) => {
     const speaker: 'C' | 'P' = line.speaker === 'Clinician' ? 'C' : 'P'
     return {
@@ -196,7 +200,10 @@ function deriveLiveScenario(
   return {
     id: selectedScenarioId,
     label: selectedScenarioId ? `Scenario ${selectedScenarioId}` : 'Live call',
-    confidence: callState.rationale?.confidence ?? 'Low',
+    confidence:
+      callState.rationale?.confidence ??
+      callState.streamingRationale?.confidence ??
+      'Low',
     drivers,
     rationale: drivers,
     transcript,
@@ -1658,6 +1665,22 @@ function ActionRow({
   )
 }
 
+function getTabbableElements(container: HTMLElement): HTMLElement[] {
+  const selector =
+    'a[href],area[href],input:not([disabled]):not([type="hidden"]),select:not([disabled]),textarea:not([disabled]),button:not([disabled]),iframe,object,embed,[tabindex]:not([tabindex="-1"]),[contenteditable="true"]'
+  return Array.from(container.querySelectorAll<HTMLElement>(selector)).filter(
+    (element) => {
+      if (element.getAttribute('aria-hidden') === 'true') {
+        return false
+      }
+      if (element.offsetParent === null && element.tagName !== 'AREA') {
+        return false
+      }
+      return true
+    },
+  )
+}
+
 function Scrim({
   align = 'center',
   children,
@@ -1667,15 +1690,64 @@ function Scrim({
   children: React.ReactNode
   onClose: () => void
 }) {
+  const dialogRef = useRef<HTMLDivElement | null>(null)
+
   useEffect(() => {
+    const previouslyFocused = document.activeElement as HTMLElement | null
+
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
+        event.preventDefault()
         onClose()
+        return
+      }
+      if (event.key !== 'Tab' || dialogRef.current === null) {
+        return
+      }
+      const focusables = getTabbableElements(dialogRef.current)
+      if (focusables.length === 0) {
+        event.preventDefault()
+        dialogRef.current.focus()
+        return
+      }
+      const first = focusables[0]
+      const last = focusables[focusables.length - 1]
+      const active = document.activeElement as HTMLElement | null
+      if (
+        event.shiftKey &&
+        (active === first || active === dialogRef.current)
+      ) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && active === last) {
+        event.preventDefault()
+        first.focus()
       }
     }
+
     window.addEventListener('keydown', onKey)
+
+    const focusFrame = window.requestAnimationFrame(() => {
+      if (dialogRef.current === null) {
+        return
+      }
+      const focusables = getTabbableElements(dialogRef.current)
+      if (focusables.length > 0) {
+        focusables[0].focus()
+      } else {
+        dialogRef.current.focus()
+      }
+    })
+
     return () => {
       window.removeEventListener('keydown', onKey)
+      window.cancelAnimationFrame(focusFrame)
+      if (
+        previouslyFocused !== null &&
+        typeof previouslyFocused.focus === 'function'
+      ) {
+        previouslyFocused.focus()
+      }
     }
   }, [onClose])
 
@@ -1706,7 +1778,15 @@ function Scrim({
         }}
         type="button"
       />
-      <div style={{ position: 'relative', zIndex: 1 }}>{children}</div>
+      <div
+        aria-modal="true"
+        ref={dialogRef}
+        role="dialog"
+        style={{ position: 'relative', zIndex: 1, outline: 'none' }}
+        tabIndex={-1}
+      >
+        {children}
+      </div>
     </div>
   )
 }
@@ -2056,6 +2136,9 @@ function HandoffModal({
   callStartedAt,
   callEndedAt,
   onOpenPdf,
+  onSendPdf,
+  sendStatus,
+  reportedDurationSeconds,
 }: {
   elapsedSeconds: number
   generatedAt: Date
@@ -2066,18 +2149,30 @@ function HandoffModal({
   callStartedAt: Date | null
   callEndedAt: Date | null
   onOpenPdf: () => void
+  onSendPdf: (recipientPhone: string) => void
+  sendStatus: 'idle' | 'sending' | 'sent' | 'error'
+  reportedDurationSeconds: number | null
 }) {
+  const [recipientPhone, setRecipientPhone] = useState('')
   const generatedLabel = `${formatDateLong(generatedAt)} · ${formatClock(generatedAt)}`
   const callDate = callStartedAt
     ? `${formatDateLong(callStartedAt)} · ${formatClock(callStartedAt)}`
     : '—'
-  const totalSeconds =
+  const wallClockSeconds =
     callStartedAt !== null && callEndedAt !== null
       ? Math.max(
           0,
           Math.round((callEndedAt.getTime() - callStartedAt.getTime()) / 1000),
         )
-      : Math.max(0, Math.round(elapsedSeconds))
+      : null
+  const totalSeconds =
+    reportedDurationSeconds !== null && reportedDurationSeconds > 0
+      ? reportedDurationSeconds
+      : wallClockSeconds !== null && wallClockSeconds > 0
+        ? wallClockSeconds
+        : Math.max(0, Math.round(elapsedSeconds))
+  const canSend =
+    sendStatus !== 'sending' && /^\+?[0-9\s]{7,}$/.test(recipientPhone.trim())
   const flagLabel =
     liveScenario.flagAt === null ? '—' : formatElapsed(liveScenario.flagAt)
   const excerpt = findTranscriptExcerpt(
@@ -2111,18 +2206,71 @@ function HandoffModal({
             alignItems: 'center',
             justifyContent: 'space-between',
             background: 'var(--paper-3)',
+            gap: 12,
+            flexWrap: 'wrap',
           }}
         >
           <SectionLabel>Handoff preview · read-only</SectionLabel>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div
+            style={{
+              display: 'flex',
+              gap: 8,
+              alignItems: 'center',
+              flexWrap: 'wrap',
+            }}
+          >
+            <input
+              aria-label="Recipient phone"
+              disabled={sendStatus === 'sending' || sendStatus === 'sent'}
+              onChange={(event) => setRecipientPhone(event.target.value)}
+              placeholder="+44 7700 900123"
+              style={{
+                border: '1px solid var(--paper-rule)',
+                borderRadius: 6,
+                padding: '6px 10px',
+                fontSize: 13,
+                background: 'var(--surface)',
+                color: 'var(--ink)',
+                minWidth: 180,
+              }}
+              type="tel"
+              value={recipientPhone}
+            />
+            <Btn
+              disabled={!canSend || sendStatus === 'sent'}
+              kind="primary"
+              onClick={() => {
+                onSendPdf(recipientPhone.trim())
+              }}
+            >
+              {sendStatus === 'sending'
+                ? 'Sending…'
+                : sendStatus === 'sent'
+                  ? 'Sent'
+                  : 'Send PDF'}
+            </Btn>
+            <Btn kind="secondary" onClick={onOpenPdf}>
+              Open generated PDF
+            </Btn>
             <Btn kind="ghost" onClick={onClose}>
               Close
             </Btn>
-            <Btn kind="primary" onClick={onOpenPdf}>
-              Open generated PDF
-            </Btn>
           </div>
         </header>
+        {sendStatus === 'error' ? (
+          <div
+            role="alert"
+            style={{
+              padding: '8px 20px',
+              background: '#fff4f2',
+              borderBottom: '1px solid #e2b0a8',
+              color: 'var(--red)',
+              fontSize: 12,
+            }}
+          >
+            Could not send. Check the recipient number and try again.
+          </div>
+        ) : null}
         <div
           className="scroll"
           style={{
@@ -2635,6 +2783,7 @@ function App() {
   const [probesOpen, setProbesOpen] = useState(false)
   const [handoffOpen, setHandoffOpen] = useState(false)
   const [handoffUrl, setHandoffUrl] = useState<string | null>(null)
+  const [handoffPdfId, setHandoffPdfId] = useState<string | null>(null)
   const [handoffGeneratedAt, setHandoffGeneratedAt] = useState<Date | null>(
     null,
   )
@@ -2642,6 +2791,9 @@ function App() {
     'none',
   )
   const [pdfTimestamp, setPdfTimestamp] = useState<string | null>(null)
+  const [sendStatus, setSendStatus] = useState<
+    'idle' | 'sending' | 'sent' | 'error'
+  >('idle')
   const [probeAnswers, setProbeAnswers] = useState<
     [string, string, string] | null
   >(null)
@@ -2678,6 +2830,9 @@ function App() {
   }, [setErrorMessage, setScenarios])
 
   useEffect(() => {
+    if (!demoModeEnabled) {
+      return
+    }
     const onKey = (event: KeyboardEvent) => {
       if (event.shiftKey && (event.key === 'D' || event.key === 'd')) {
         event.preventDefault()
@@ -2758,6 +2913,14 @@ function App() {
         ),
       })
     })
+    eventSource.addEventListener('rationale_token', (event) => {
+      applyEvent({
+        type: 'rationale_token',
+        data: parseSseEvent<
+          Extract<CallSseEvent, { type: 'rationale_token' }>['data']
+        >(event as MessageEvent<string>),
+      })
+    })
     eventSource.addEventListener('rationale_done', (event) => {
       applyEvent({
         type: 'rationale_done',
@@ -2820,6 +2983,8 @@ function App() {
     setCallStartedAt(new Date())
     setCallEndedAt(null)
     setHandoffGeneratedAt(null)
+    setHandoffPdfId(null)
+    setSendStatus('idle')
     setPdfState('none')
     setPdfTimestamp(null)
     setProbeAnswers(null)
@@ -2840,6 +3005,8 @@ function App() {
     setCallStartedAt(null)
     setCallEndedAt(null)
     setHandoffGeneratedAt(null)
+    setHandoffPdfId(null)
+    setSendStatus('idle')
     setPdfState('none')
     setPdfTimestamp(null)
     setProbeAnswers(null)
@@ -2886,12 +3053,29 @@ function App() {
           import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000',
         ).toString(),
       )
+      setHandoffPdfId(response.pdf_id)
       setHandoffGeneratedAt(generatedAt)
       setPdfState('generated')
       setPdfTimestamp(formatClock(generatedAt))
+      setSendStatus('idle')
       setHandoffOpen(true)
     } catch {
       setErrorMessage('Could not generate handoff PDF')
+    }
+  }
+
+  async function dispatchHandoff(recipientPhone: string): Promise<void> {
+    if (callId === null || handoffPdfId === null) {
+      return
+    }
+    setSendStatus('sending')
+    try {
+      await sendHandoff(callId, handoffPdfId, recipientPhone)
+      setSendStatus('sent')
+      setPdfState('sent')
+      setPdfTimestamp(formatClock(new Date()))
+    } catch {
+      setSendStatus('error')
     }
   }
 
@@ -2978,18 +3162,20 @@ function App() {
         </aside>
       </main>
 
-      <DevDrawer
-        onAttachLive={() => {
-          void attachLatestLiveCall()
-        }}
-        onClose={() => setDrawerOpen(false)}
-        onPickScenario={(scenarioId) => {
-          void startScenario(scenarioId)
-        }}
-        open={drawerOpen}
-        scenarios={scenarios}
-      />
-      {!drawerOpen ? (
+      {demoModeEnabled ? (
+        <DevDrawer
+          onAttachLive={() => {
+            void attachLatestLiveCall()
+          }}
+          onClose={() => setDrawerOpen(false)}
+          onPickScenario={(scenarioId) => {
+            void startScenario(scenarioId)
+          }}
+          open={drawerOpen}
+          scenarios={scenarios}
+        />
+      ) : null}
+      {demoModeEnabled && !drawerOpen ? (
         <button
           onClick={() => setDrawerOpen(true)}
           style={{
@@ -3038,7 +3224,12 @@ function App() {
           onOpenPdf={() => {
             window.open(handoffUrl, '_blank', 'noopener,noreferrer')
           }}
+          onSendPdf={(recipientPhone) => {
+            void dispatchHandoff(recipientPhone)
+          }}
           probeAnswers={probeAnswers}
+          reportedDurationSeconds={callState.durationSeconds}
+          sendStatus={sendStatus}
           triageState={triageState}
         />
       ) : null}

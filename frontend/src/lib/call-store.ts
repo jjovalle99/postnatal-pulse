@@ -37,6 +37,7 @@ type EventWithTime =
   | { type: 'end'; data: { duration_seconds: number } }
   | { type: 'flag'; data: { t: number } }
   | { type: 'rationale_done'; data: { flag_id: string } }
+  | { type: 'rationale_token'; data: { flag_id: string } }
   | { type: 'system'; data: { timestamp?: number } }
   | { type: 'transcript'; data: { t: number } }
   | { type: 'triage'; data: { t: number } }
@@ -52,6 +53,8 @@ function getEventTime(event: EventWithTime): number | null {
     case 'flag':
       return event.data.t
     case 'rationale_done':
+      return null
+    case 'rationale_token':
       return null
     case 'system':
       return event.data.timestamp ?? null

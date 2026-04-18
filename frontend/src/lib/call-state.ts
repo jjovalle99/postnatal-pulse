@@ -37,6 +37,13 @@ export type RationaleSummary = {
   confidence: string
 }
 
+export type StreamingRationale = {
+  flagId: string
+  drivers: string[]
+  confidence: string | null
+  done: boolean
+}
+
 export type CallSummary = {
   source: string
   scenarioId: string
@@ -64,6 +71,7 @@ export type CallState = {
   transcripts: TranscriptLine[]
   flag: FlagSummary | null
   rationale: RationaleSummary | null
+  streamingRationale: StreamingRationale | null
   biomarkerSnapshots: BiomarkerSnapshot[]
   concordanceTrace: ConcordanceTracePoint[]
   systemMessages: string[]
@@ -113,6 +121,15 @@ export type RationaleDoneSseEvent = {
   }
 }
 
+export type RationaleTokenSseEvent = {
+  type: 'rationale_token'
+  data: {
+    flag_id: string
+    driver_index: number
+    token: string
+  }
+}
+
 export type BiomarkerSseEvent = {
   type: 'biomarker'
   data: {
@@ -157,6 +174,7 @@ export type CallSseEvent =
   | EndSseEvent
   | FlagSseEvent
   | RationaleDoneSseEvent
+  | RationaleTokenSseEvent
   | SystemSseEvent
   | TranscriptSseEvent
   | TriageSseEvent
@@ -168,6 +186,7 @@ export function createInitialCallState(): CallState {
     transcripts: [],
     flag: null,
     rationale: null,
+    streamingRationale: null,
     biomarkerSnapshots: [],
     concordanceTrace: [],
     systemMessages: [],
@@ -218,6 +237,33 @@ export function applyCallSseEvent(
           deterministicPayload: event.data.deterministic_payload,
         },
       }
+    case 'rationale_token': {
+      const existing =
+        state.streamingRationale !== null &&
+        state.streamingRationale.flagId === event.data.flag_id
+          ? state.streamingRationale
+          : {
+              flagId: event.data.flag_id,
+              drivers: [],
+              confidence: null,
+              done: false,
+            }
+      const nextDrivers = [...existing.drivers]
+      while (nextDrivers.length <= event.data.driver_index) {
+        nextDrivers.push('')
+      }
+      nextDrivers[event.data.driver_index] =
+        nextDrivers[event.data.driver_index] + event.data.token
+      return {
+        ...state,
+        streamingRationale: {
+          flagId: event.data.flag_id,
+          drivers: nextDrivers,
+          confidence: existing.confidence,
+          done: false,
+        },
+      }
+    }
     case 'rationale_done':
       return {
         ...state,
@@ -225,6 +271,12 @@ export function applyCallSseEvent(
           flagId: event.data.flag_id,
           drivers: event.data.drivers,
           confidence: event.data.confidence,
+        },
+        streamingRationale: {
+          flagId: event.data.flag_id,
+          drivers: event.data.drivers,
+          confidence: event.data.confidence,
+          done: true,
         },
       }
     case 'biomarker':

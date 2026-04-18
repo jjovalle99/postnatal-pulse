@@ -69,6 +69,14 @@ export type GenerateHandoffResponse = {
   download_url: string
 }
 
+/** Response payload for PDF SMS dispatch. */
+export type SendHandoffResponse = {
+  sms_id: string
+  dispatched_at: string
+  signed_download_url: string
+  expires_at: string
+}
+
 /** Fetches the deterministic demo scenarios from the backend. */
 export async function fetchScenarios(): Promise<ScenarioSummary[]> {
   return ky
@@ -131,4 +139,18 @@ export async function generateHandoff(
       headers: apiHeaders,
     })
     .json<GenerateHandoffResponse>()
+}
+
+/** Dispatches the generated handoff PDF via SMS to the recipient phone. */
+export async function sendHandoff(
+  callId: string,
+  pdfId: string,
+  recipientPhone: string,
+): Promise<SendHandoffResponse> {
+  return ky
+    .post(buildApiUrl(`api/calls/${callId}/handoff/${pdfId}/send`), {
+      headers: apiHeaders,
+      json: { recipient_phone: recipientPhone },
+    })
+    .json<SendHandoffResponse>()
 }
